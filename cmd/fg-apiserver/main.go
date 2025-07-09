@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/onexstarck/fastgo/cmd/fg-apiserver/app"
+	"github.com/onexstack/fastgo/cmd/fg-apiserver/app"
 	_ "go.uber.org/automaxprocs"
 )
 
