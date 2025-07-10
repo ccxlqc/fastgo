@@ -1,9 +1,6 @@
 package app
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -21,21 +18,8 @@ func NewFastGOCommand() *cobra.Command {
 		Long:         `A very lightweight full go project, designed to help beginners quickly learn Go project development.`,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// 将 viper 中的配置解析到选项 opts 变量中.
-			if err := viper.Unmarshal(opts); err != nil {
-				return err
-			}
+			return run(opts)
 
-			// 验证选项 opts 变量.
-			if err := opts.Validate(); err != nil {
-				return err
-			}
-
-			fmt.Printf("Read MySQL host from Viper: %s\n\n", viper.GetString("mysql.host"))
-			jsonData, _ := json.MarshalIndent(opts, "", "  ")
-			fmt.Println(string(jsonData))
-
-			return nil
 		},
 		Args: cobra.NoArgs,
 	}
@@ -47,4 +31,33 @@ func NewFastGOCommand() *cobra.Command {
 	cmd.PersistentFlags().StringVarP(&configFile, "config", "c", filePath(), "Path to the fg-apiserver configuration file.")
 
 	return cmd
+}
+
+func run(opts *options.ServerOptions) error {
+	// 将 viper 中的配置解析到选项 opts 变量中.
+	if err := viper.Unmarshal(opts); err != nil {
+		return err
+	}
+
+	// 验证选项 opts 变量.
+	if err := opts.Validate(); err != nil {
+		return err
+	}
+
+	// 获取应用配置.
+	// 将命令行选项和应用配置分开，可以更加灵活的处理 2 种不同类型的配置.
+	cfg, err := opts.Config()
+	if err != nil {
+		return err
+	}
+
+	// 创建服务器实例.
+	server, err := cfg.NewServer()
+	if err != nil {
+		return err
+	}
+
+	// 启动服务器
+	return server.Run()
+
 }
