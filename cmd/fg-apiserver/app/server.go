@@ -1,6 +1,10 @@
 package app
 
 import (
+	"io"
+	"log/slog"
+	"os"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -41,6 +45,8 @@ func run(opts *options.ServerOptions) error {
 	// 如果传入 --version，则打印版本信息并退出
 	version.PrintAndExitIfRequested()
 
+	initLog()
+
 	// 将 viper 中的配置解析到选项 opts 变量中.
 	if err := viper.Unmarshal(opts); err != nil {
 		return err
@@ -66,5 +72,60 @@ func run(opts *options.ServerOptions) error {
 
 	// 启动服务器
 	return server.Run()
+}
 
+func initLog() {
+	format := viper.GetString("log.format")
+	level := viper.GetString("log.level")
+	output := viper.GetString("log.output")
+
+	var slevel slog.Level
+	switch level {
+	case "debug":
+		slevel = slog.LevelDebug
+	case "info":
+		slevel = slog.LevelInfo
+	case "warn":
+		slevel = slog.LevelWarn
+	case "error":
+		slevel = slog.LevelError
+	default:
+		slevel = slog.LevelInfo
+	}
+
+	opts := slog.HandlerOptions{
+		Level: slevel,
+	}
+
+	var w io.Writer
+	var err error
+
+	switch output {
+	case "":
+		w = os.Stdout
+	case "stdout":
+		w = os.Stderr
+	default:
+		w, err = os.OpenFile(output, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// 转换日志格式
+	if err != nil {
+		return
+	}
+
+	var handler slog.Handler
+	switch format {
+	case "json":
+		handler = slog.NewJSONHandler(w, &opts)
+	case "text":
+		handler = slog.NewTextHandler(w, &opts)
+	default:
+		handler = slog.NewJSONHandler(w, &opts)
+	}
+
+	slog.SetDefault(slog.New(handler))
 }
