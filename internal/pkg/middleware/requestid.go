@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/onexstack/fastgo/internal/pkg/contextx"
@@ -21,7 +23,7 @@ func RequestID() gin.HandlerFunc {
 
 		// 将 RequestID 保存到 HTTP 返回头中，Header 的键为 `x-request-id`
 		c.Writer.Header().Set(known.XRequestID, requestID)
-
+		slog.Info("requestID", "requestID", requestID, "contextRequestID", contextx.RequestID(c.Request.Context()), "headerRequestID", c.Request.Header.Get(known.XRequestID))
 		c.Next()
 	}
 }
