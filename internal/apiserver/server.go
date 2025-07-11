@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	ms "github.com/onexstack/fastgo/internal/pkg/middleware"
 	genericoptions "github.com/onexstack/fastgo/pkg/options"
 )
 
@@ -18,8 +19,24 @@ type Server struct {
 	srv *http.Server
 }
 
+func LogMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		slog.Info("Request received", "method", c.Request.Method, "path", c.Request.URL.Path)
+		c.Next()
+	}
+}
+
 func (cfg *Config) NewServer() (*Server, error) {
 	engine := gin.New()
+
+	// gin.Recovery() 中间件，用来捕获任何 panic，并恢复
+	mws := []gin.HandlerFunc{
+		gin.Recovery(),
+		ms.NoCache,
+		ms.Cors,
+		ms.RequestID(),
+	}
+	engine.Use(mws...)
 
 	engine.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"code": "PageNotFound", "message": "Page not found."})
