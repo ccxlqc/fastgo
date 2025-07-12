@@ -1,8 +1,13 @@
 package apiserver
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	ms "github.com/onexstack/fastgo/internal/pkg/middleware"
@@ -60,9 +65,32 @@ func (cfg *Config) NewServer() (*Server, error) {
 func (s *Server) Run() error {
 	slog.Info("Read MySQL host from config", "mysql.addr", s.cfg.MySQLOptions.Addr)
 
-	if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	go func() {
+		if err := s.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("Failed to start server", "error", err)
+		}
+	}()
+
+	// 创建一个 os.Signal 类型的 channel，用于接收系统信号
+	quit := make(chan os.Signal, 1)
+
+	// 监听系统信号，如 SIGINT 和 SIGTERM
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	<-quit
+
+	slog.Info("Shutting down server...")
+
+	// 优雅关闭服务
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := s.srv.Shutdown(ctx); err != nil {
+		slog.Error("Failed to shutdown server", "error", err)
 		return err
 	}
+
+	slog.Info("Server exited")
 
 	return nil
 }
