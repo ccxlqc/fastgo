@@ -21,7 +21,7 @@ type MySQLOptions struct {
 }
 
 func (o *MySQLOptions) NewDB() (*gorm.DB, error) {
-	db, err := gorm.Open(mysql.Open(o.Addr), &gorm.Config{
+	db, err := gorm.Open(mysql.Open(o.DSN()), &gorm.Config{
 		PrepareStmt: true,
 	})
 
@@ -39,6 +39,17 @@ func (o *MySQLOptions) NewDB() (*gorm.DB, error) {
 	sqlDB.SetConnMaxLifetime(o.MaxConnectionLifeTime)
 
 	return db, nil
+}
+
+// DSN return DSN from MySQLOptions.
+func (o *MySQLOptions) DSN() string {
+	return fmt.Sprintf(`%s:%s@tcp(%s)/%s?charset=utf8&parseTime=%t&loc=%s`,
+		o.Username,
+		o.Password,
+		o.Addr,
+		o.Database,
+		true,
+		"Local")
 }
 
 func NewMySQLOptions() *MySQLOptions {

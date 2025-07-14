@@ -1,14 +1,14 @@
 package biz
 
 import (
-	post "github.com/onexstack/fastgo/internal/apiserver/biz/v1/post"
-	user "github.com/onexstack/fastgo/internal/apiserver/biz/v1/user"
+	postv1 "github.com/onexstack/fastgo/internal/apiserver/biz/v1/post"
+	userv1 "github.com/onexstack/fastgo/internal/apiserver/biz/v1/user"
 	"github.com/onexstack/fastgo/internal/apiserver/store"
 )
 
 type IBiz interface {
-	UserV1() user.UserBiz
-	PostV1() post.PostBiz
+	UserV1() userv1.UserBiz
+	PostV1() postv1.PostBiz
 }
 
 type biz struct {
@@ -17,16 +17,16 @@ type biz struct {
 
 var _ IBiz = (*biz)(nil)
 
-func New(store store.IStore) *biz {
+func NewBiz(store store.IStore) *biz {
 	return &biz{
 		store: store,
 	}
 }
 
-func (b *biz) UserV1() user.UserBiz {
-	return user.New(b.store)
+func (b *biz) UserV1() userv1.UserBiz {
+	return userv1.New(b.store)
 }
 
-func (b *biz) PostV1() post.PostBiz {
-	return post.New(b.store)
+func (b *biz) PostV1() postv1.PostBiz {
+	return postv1.New(b.store)
 }
