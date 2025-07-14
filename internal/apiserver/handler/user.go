@@ -9,6 +9,75 @@ import (
 	"github.com/onexstack/onexstack/pkg/errorsx"
 )
 
+func (h *Handler) Login(c *gin.Context) {
+	slog.Info("Login function called")
+
+	var rq v1.LoginRequest
+	if err := c.ShouldBindJSON(&rq); err != nil {
+		core.WriteResponse(c, nil, errorsx.ErrBind)
+		return
+	}
+
+	if err := h.val.ValidateLoginRequest(c, &rq); err != nil {
+		core.WriteResponse(c, nil, errorsx.ErrInvalidArgument.WithMessage("%s", err.Error()))
+		return
+	}
+
+	resp, err := h.biz.UserV1().Login(c.Request.Context(), &rq)
+	if err != nil {
+		core.WriteResponse(c, nil, err)
+		return
+	}
+
+	core.WriteResponse(c, resp, nil)
+}
+
+func (h *Handler) RefreshToken(c *gin.Context) {
+	slog.Info("Refresh token function called")
+
+	var rq v1.RefreshTokenRequest
+	if err := c.ShouldBindJSON(&rq); err != nil {
+		core.WriteResponse(c, nil, errorsx.ErrBind)
+		return
+	}
+
+	if err := h.val.ValidateRefreshTokenRequest(c, &rq); err != nil {
+		core.WriteResponse(c, nil, errorsx.ErrInvalidArgument.WithMessage("%s", err.Error()))
+		return
+	}
+
+	resp, err := h.biz.UserV1().RefreshToken(c.Request.Context(), &rq)
+	if err != nil {
+		core.WriteResponse(c, nil, err)
+		return
+	}
+
+	core.WriteResponse(c, resp, nil)
+}
+
+func (h *Handler) ChangePassword(c *gin.Context) {
+	slog.Info("Change password function called")
+
+	var rq v1.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&rq); err != nil {
+		core.WriteResponse(c, nil, errorsx.ErrBind)
+		return
+	}
+
+	if err := h.val.ValidateChangePasswordRequest(c, &rq); err != nil {
+		core.WriteResponse(c, nil, errorsx.ErrInvalidArgument.WithMessage("%s", err.Error()))
+		return
+	}
+
+	resp, err := h.biz.UserV1().ChangePassword(c.Request.Context(), &rq)
+	if err != nil {
+		core.WriteResponse(c, nil, err)
+		return
+	}
+
+	core.WriteResponse(c, resp, nil)
+}
+
 func (h *Handler) CreateUser(c *gin.Context) {
 	slog.Info("Create user function called")
 

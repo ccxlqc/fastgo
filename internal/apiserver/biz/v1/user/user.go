@@ -10,8 +10,11 @@ import (
 	"github.com/onexstack/fastgo/internal/apiserver/pkg/conversion"
 	"github.com/onexstack/fastgo/internal/apiserver/store"
 	"github.com/onexstack/fastgo/internal/pkg/contextx"
+	"github.com/onexstack/fastgo/internal/pkg/errorsx"
 	"github.com/onexstack/fastgo/internal/pkg/known"
 	apiv1 "github.com/onexstack/fastgo/pkg/api/apiserver/v1"
+	"github.com/onexstack/fastgo/pkg/auth"
+	"github.com/onexstack/fastgo/pkg/token"
 	"github.com/onexstack/onexstack/pkg/store/where"
 	"golang.org/x/sync/errgroup"
 )
@@ -29,6 +32,9 @@ type UserBiz interface {
 
 // UserExpansion 定义用户操作的扩展方法.
 type UserExpansion interface {
+	Login(ctx context.Context, rq *apiv1.LoginRequest) (*apiv1.LoginResponse, error)
+	RefreshToken(ctx context.Context, rq *apiv1.RefreshTokenRequest) (*apiv1.RefreshTokenResponse, error)
+	ChangePassword(ctx context.Context, rq *apiv1.ChangePasswordRequest) (*apiv1.ChangePasswordResponse, error)
 }
 
 var _ UserBiz = (*userBiz)(nil)
@@ -152,4 +158,61 @@ func (b *userBiz) List(ctx context.Context, rq *apiv1.ListUserRequest) (*apiv1.L
 	slog.DebugContext(ctx, "Get users from backend storage", "count", len(users))
 
 	return &apiv1.ListUserResponse{TotalCount: count, Users: users}, nil
+}
+
+func (b *userBiz) Login(ctx context.Context, rq *apiv1.LoginRequest) (*apiv1.LoginResponse, error) {
+	userM, err := b.store.User().Get(ctx, where.F("username", rq.Username))
+	if err != nil {
+		return nil, errorsx.ErrUserNotFound
+	}
+
+	if err := auth.Compare(userM.Password, rq.Password); err != nil {
+		return nil, errorsx.ErrPasswordInvalid
+	}
+
+	// 如果匹配成功，说明登录成功，签发 token 并返回
+	tokenStr, expireAt, err := token.Sign(userM.UserID)
+	if err != nil {
+		return nil, errorsx.ErrSignToken
+	}
+
+	return &apiv1.LoginResponse{
+		Token:    tokenStr,
+		ExpireAt: expireAt,
+	}, nil
+}
+
+func (b *userBiz) RefreshToken(ctx context.Context, rq *apiv1.RefreshTokenRequest) (*apiv1.RefreshTokenResponse, error) {
+	// 如果匹配成功，说明登录成功，签发 token 并返回
+	tokenStr, expireAt, err := token.Sign(contextx.UserID(ctx))
+	if err != nil {
+		return nil, errorsx.ErrSignToken
+	}
+
+	return &apiv1.RefreshTokenResponse{
+		Token:    tokenStr,
+		ExpireAt: expireAt,
+	}, nil
+}
+
+func (b *userBiz) ChangePassword(ctx context.Context, rq *apiv1.ChangePasswordRequest) (*apiv1.ChangePasswordResponse, error) {
+	userM, err := b.store.User().Get(ctx, where.F("UserID", contextx.UserID(ctx)))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := auth.Compare(userM.Password, rq.OldPassword); err != nil {
+		return nil, errorsx.ErrPasswordInvalid
+	}
+
+	userM.Password, err = auth.Encrypt(rq.NewPassword)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := b.store.User().Update(ctx, userM); err != nil {
+		return nil, err
+	}
+
+	return &apiv1.ChangePasswordResponse{}, nil
 }

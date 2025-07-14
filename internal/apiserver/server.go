@@ -16,7 +16,7 @@ import (
 	"github.com/onexstack/fastgo/internal/apiserver/store"
 	"github.com/onexstack/fastgo/internal/pkg/core"
 	"github.com/onexstack/fastgo/internal/pkg/errorsx"
-	ms "github.com/onexstack/fastgo/internal/pkg/middleware"
+	mw "github.com/onexstack/fastgo/internal/pkg/middleware"
 	genericoptions "github.com/onexstack/fastgo/pkg/options"
 )
 
@@ -43,9 +43,9 @@ func (cfg *Config) NewServer() (*Server, error) {
 	// gin.Recovery() 中间件，用来捕获任何 panic，并恢复
 	mws := []gin.HandlerFunc{
 		gin.Recovery(),
-		ms.NoCache,
-		ms.Cors,
-		ms.RequestID(),
+		mw.NoCache,
+		mw.Cors,
+		mw.RequestID(),
 	}
 	engine.Use(mws...)
 
@@ -82,8 +82,11 @@ func (cfg *Config) InstallRESTAPI(engine *gin.Engine, store store.IStore) {
 
 	// 创建核心业务处理器
 	handler := handler.NewHandler(biz.NewBiz(store), validation.NewValidator(store))
+	authMiddlewares := []gin.HandlerFunc{mw.Authn()}
 
-	authMiddlewares := []gin.HandlerFunc{}
+	// 注册用户登录和令牌刷新接口。这2个接口比较简单，所以没有 API 版本
+	engine.POST("/login", handler.Login)
+	engine.POST("/refresh-token", mw.Authn(), handler.RefreshToken)
 
 	// 注册 v1 版本 API 路由分组
 	v1 := engine.Group("/v1")
@@ -93,10 +96,13 @@ func (cfg *Config) InstallRESTAPI(engine *gin.Engine, store store.IStore) {
 		{
 			// 创建用户。这里要注意：创建用户是不用进行认证和授权的
 			userv1.POST("", handler.CreateUser)
+			userv1.Use(authMiddlewares...)
+
 			userv1.PUT(":userID", handler.UpdateUser)    // 更新用户信息
 			userv1.DELETE(":userID", handler.DeleteUser) // 删除用户
 			userv1.GET(":userID", handler.GetUser)       // 查询用户详情
 			userv1.GET("", handler.ListUser)             // 查询用户列表.
+			userv1.PUT(":userID/change-password", handler.ChangePassword)
 		}
 
 		// 博客相关路由

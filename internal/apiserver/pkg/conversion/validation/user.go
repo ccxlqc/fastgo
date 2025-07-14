@@ -7,6 +7,34 @@ import (
 	v1 "github.com/onexstack/fastgo/pkg/api/apiserver/v1"
 )
 
+func (v *Validator) ValidateLoginRequest(ctx context.Context, rq *v1.LoginRequest) error {
+	if rq.Username == "" {
+		return errors.New("username cannot be empty")
+	}
+
+	if rq.Password == "" {
+		return errors.New("password cannot be empty")
+	}
+
+	return nil
+}
+
+func (v *Validator) ValidateRefreshTokenRequest(ctx context.Context, rq *v1.RefreshTokenRequest) error {
+	return nil
+}
+
+func (v *Validator) ValidateChangePasswordRequest(ctx context.Context, rq *v1.ChangePasswordRequest) error {
+	if rq.OldPassword == "" {
+		return errors.New("old password cannot be empty")
+	}
+
+	if rq.NewPassword == "" {
+		return errors.New("new password cannot be empty")
+	}
+
+	return nil
+}
+
 func (v *Validator) ValidateCreateUserRequest(ctx context.Context, rq *v1.CreateUserRequest) error {
 
 	// Validate username
